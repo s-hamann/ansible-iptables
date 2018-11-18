@@ -1,0 +1,37 @@
+---
+- name: 'gather os specific variables'
+  include_vars: '{{ item }}'
+  with_first_found:
+    - "{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version']}}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - 'default.yml'
+
+- name: 'install iptables'
+  package:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ iptables_packages }}"
+
+- name: 'install iptables setup script'
+  template:
+    src: 'firewall.sh.j2'
+    dest: '/usr/local/sbin/firewall.sh'
+    owner: root
+    group: root
+    mode: 0755
+  register: _iptables_script
+
+- name: 'activate and persist rules'
+  command: "{{ item }}"
+  when: "_iptables_script is changed"
+  loop:
+    - '/usr/local/sbin/firewall.sh restart'
+    - '/usr/local/sbin/firewall.sh save'
+
+- name: 'enable and start'
+  service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop: "{{ iptables_services }}"

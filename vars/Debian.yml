@@ -1,0 +1,7 @@
+iptables_packages:
+  - iptables
+  - iptables-persistent
+iptables_services:
+  - netfilter-persistent
+iptables_save_path: '/etc/iptables/rules.v4'
+ip6tables_save_path: '/etc/iptables/rules.v6'

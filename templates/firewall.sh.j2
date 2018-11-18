@@ -1,0 +1,421 @@
+#jinja2: lstrip_blocks: True
+#!/bin/bash
+# iptables configuration script v0.6
+# {{ ansible_managed }}
+{# This returns the iptables options for a port-specific rule #}
+{% macro port_opts(port) %}
+{% if port is number -%}
+--dport {{ port }}
+{%- else -%}
+--dport {{ port.port }}{{ ' --source ' ~ port.source if port.source is defined else '' }}{{ ' --destination ' ~ port.dest if port.dest is defined else '' }}{{ ' -m owner --uid-owner ' ~ port.user if port.user is defined else '' }}
+{%- endif %}
+{% endmacro %}
+
+allow_ping={{ 'true' if iptables_allow_ping | bool else 'false' }}
+
+iptables() {
+    # Wrapper around iptables and ip6tables that passes all parameters to both programs
+    local ipv4=true
+    local ipv6=true
+    if [[ "$1" == '-4' ]]; then
+        ipv6=false
+        shift
+    elif [[ "$1" == '-6' ]]; then
+        ipv4=false
+        shift
+    fi
+    ${ipv4} && /sbin/iptables "$@"
+    ${ipv6} && /sbin/ip6tables "$@"
+}
+
+start() {
+    echo "Bringing up iptables..."
+
+    # Don't block lo
+    iptables -A INPUT -i lo -j ACCEPT
+    iptables -A OUTPUT -o lo -j ACCEPT
+
+
+    # Allow connections already established or related to established connections
+    iptables -A INPUT -p tcp -m state --state ESTABLISHED,RELATED -j ACCEPT
+    iptables -A INPUT -p udp -m state --state ESTABLISHED,RELATED -j ACCEPT
+    iptables -A INPUT -m state --state INVALID -j DROP
+    iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    iptables -A OUTPUT -m state --state INVALID -j DROP
+
+
+    # Advanced drop
+    iptables -N drop_input
+    iptables -F drop_input
+    {% if iptables_log_dropped_input | bool %}
+    iptables -A drop_input -m limit --limit 1/second -j LOG --log-level notice --log-prefix 'iptables blocked (IN): '
+    {% endif %}
+    # Close TCP connections instead of dropping them
+    iptables -A drop_input -p tcp -j REJECT --reject-with tcp-reset
+    # Close UDP connections instead of dropping them
+    iptables -4 -A drop_input -p udp -j REJECT --reject-with icmp-port-unreachable
+    iptables -6 -A drop_input -p udp -j REJECT --reject-with icmp6-port-unreachable
+    # Just drop everything else
+    iptables -A drop_input -j DROP
+
+    iptables -N drop_output
+    iptables -F drop_output
+    {% if iptables_log_dropped_output | bool %}
+    iptables -A drop_output -m limit --limit 1/second -j LOG --log-uid --log-level warning --log-prefix 'iptables blocked (OUT): '
+    {% endif %}
+    iptables -A drop_output -j REJECT
+
+
+    # Rules for ICMP-traffic, used by INPUT and OUTPUT chain
+    iptables -N check-icmp
+    iptables -F check-icmp
+
+    iptables -4 -A check-icmp -p icmp --icmp-type 'destination-unreachable' -j ACCEPT
+    iptables -4 -A check-icmp -p icmp --icmp-type 'echo-reply' -j ACCEPT
+    iptables -4 -A check-icmp -p icmp --icmp-type 'time-exceeded' -j ACCEPT
+
+    # Based on recommendations in RFC 4890
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'destination-unreachable' -j ACCEPT
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'packet-too-big' -j ACCEPT
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'time-exceeded' -j ACCEPT
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'parameter-problem' -j ACCEPT
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'echo-reply' -j ACCEPT
+    # Address Configuration and Router Selection messages
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'neighbor-solicitation' -j ACCEPT
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'neighbor-advertisement' -j ACCEPT
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'router-solicitation' -j ACCEPT
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'router-advertisement' -j ACCEPT
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 141 -j ACCEPT
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 142 -j ACCEPT
+    # Link-Local Multicast Receiver Notification messages
+    iptables -6 -A check-icmp --source fe80::/10 -p ipv6-icmp --icmpv6-type 130 -j ACCEPT
+    iptables -6 -A check-icmp --source fe80::/10 -p ipv6-icmp --icmpv6-type 131 -j ACCEPT
+    iptables -6 -A check-icmp --source fe80::/10 -p ipv6-icmp --icmpv6-type 132 -j ACCEPT
+    iptables -6 -A check-icmp --source fe80::/10 -p ipv6-icmp --icmpv6-type 143 -j ACCEPT
+    # SEND Certificate Path Notification messages
+    iptables -6 -A check-icmp -p ipv6-icmp --icmpv6-type 148 -j ACCEPT
+    iptables -6 -A check-icmp -p ipv6-icmp --icmpv6-type 149 -j ACCEPT
+    # Multicast Router Discovery messages
+    iptables -6 -A check-icmp --source fe80::/10 -p ipv6-icmp --icmpv6-type 151 -j ACCEPT
+    iptables -6 -A check-icmp --source fe80::/10 -p ipv6-icmp --icmpv6-type 152 -j ACCEPT
+    iptables -6 -A check-icmp --source fe80::/10 -p ipv6-icmp --icmpv6-type 153 -j ACCEPT
+
+    if ${allow_ping}; then
+        iptables -4 -A check-icmp -p icmp --icmp-type 'echo-request' -m limit --limit 5/sec -j ACCEPT
+        iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'echo-request' -m limit --limit 5/sec -j ACCEPT
+    fi
+    iptables -4 -A check-icmp -p icmp --icmp-type 'echo-request' -j REJECT --reject-with icmp-host-unreachable
+    iptables -6 -A check-icmp -p icmpv6 --icmpv6-type 'echo-request' -j REJECT --reject-with icmp6-addr-unreachable
+
+    # ICMP Timestamp Requests, not to be confused with TCP Timestamp Requests
+    iptables -4 -A check-icmp -p icmp --icmp-type 'timestamp-request' -j DROP
+
+
+    #
+    # Rules for incoming traffic
+    #
+
+    # Ignore Broadcast, Multicast and Anycast addresses
+    iptables -4 -A INPUT -m addrtype --dst-type BROADCAST -j drop_input
+    iptables -4 -A INPUT -m addrtype --dst-type MULTICAST -j drop_input
+    iptables -4 -A INPUT -m addrtype --dst-type ANYCAST -j drop_input
+
+    # Allow *all* traffic from the following IPs
+    {% for ip in iptables_accept_ip_input %}
+    iptables -A INPUT --source "{{ ip }}" -j ACCEPT
+    {% endfor %}
+    # Block *all* traffic from the following IPs
+    {% for ip in iptables_block_ip_input %}
+    iptables -A INPUT --source "{{ ip }}" -j drop_input
+    {% endfor %}
+
+    # Handle ICMP
+    iptables -4 -A INPUT -p icmp -j check-icmp
+    iptables -6 -A INPUT -p icmpv6 -j check-icmp
+
+
+    # Rules for TCP ports
+    iptables -N tcp_input
+    iptables -F tcp_input
+    {% for port in iptables_accept_tcp_input %}
+    iptables -A tcp_input -p tcp {{ port_opts(port) }} -j ACCEPT
+    {% endfor %}
+    {% for port in iptables_block_tcp_input %}
+    iptables -A tcp_input -p tcp {{ port_opts(port) }} -j drop_input
+    {% endfor %}
+    # Connect to INPUT chain
+    iptables -A INPUT -p tcp -j tcp_input
+
+    # Rules for UDP ports
+    iptables -N udp_input
+    iptables -F udp_input
+    {% for port in iptables_accept_udp_input %}
+    iptables -A udp_input -p udp {{ port_opts(port) }} -j ACCEPT
+    {% endfor %}
+    {% for port in iptables_block_udp_input %}
+    iptables -A udp_input -p udp {{ port_opts(port) }} -j drop_input
+    {% endfor %}
+    # Connect to INPUT chain
+    iptables -A INPUT -p udp -j udp_input
+
+    {% for rule in iptables_custom_input_rules %}
+    {% if rule.startswith('-4') %}
+    iptables -4 -A INPUT {{ rule[3:] }}
+    {% elif rule.startswith('-6') %}
+    iptables -6 -A INPUT {{ rule[3:] }}
+    {% else %}
+    iptables -A INPUT {{ rule }}
+    {% endif %}
+    {% endfor %}
+
+    {% if iptables_input_policy == 'DROP' %}
+    # Drop everything else
+    iptables -A INPUT -j drop_input
+    {% endif %}
+
+
+    #
+    # Rules for outgoing traffic
+    #
+
+    iptables -N tcp_output
+    iptables -F tcp_output
+    iptables -N udp_output
+    iptables -F udp_output
+
+
+    # Allow *all* traffic to the following IPs
+    {% for ip in iptables_accept_ip_output %}
+    iptables -A OUTPUT --source "{{ ip }}" -j ACCEPT
+    {% endfor %}
+    # Block *all* traffic to the following IPs
+    {% for ip in iptables_block_ip_output %}
+    iptables -A OUTPUT --source "{{ ip }}" -j drop_output
+    {% endfor %}
+
+    # Handle ICMP
+    iptables -4 -A OUTPUT -p icmp -j check-icmp
+    iptables -6 -A OUTPUT -p icmpv6 -j check-icmp
+
+
+    {% if iptables_output_policy == 'DROP' %}
+    # Allow DNS requests to the configured nameservers
+    grep -Po '^nameserver\s*\K([0-2]?[0-9]{1,2}\.){3}[0-2]?[0-9]{1,2}' /etc/resolv.conf | while read -r ip4; do
+        if [[ "${ip4}" != 127.* ]]; then
+            # This intentionally allows both UDP and TCP
+            iptables -4 -A udp_output -p udp {{ port_opts({ 'port': 53, 'dest': '"${ip4}"' }) }} -j ACCEPT
+            iptables -4 -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'dest': '"${ip4}"' }) }} -j ACCEPT
+        fi
+    done
+    grep -Poi '^nameserver\s*\K([0-9a-f]{1,4}:){1,7}(:[0-9a-f]{1,4}){1,7}' /etc/resolv.conf | while read -r ip6; do
+        if [[ "${ip6}" != ::1 ]]; then
+            # This intentionally allows both UDP and TCP
+            iptables -6 -A udp_output -p udp {{ port_opts({ 'port': 53, 'dest': '"${ip6}"' }) }} -j ACCEPT
+            iptables -6 -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'dest': '"${ip6}"' }) }} -j ACCEPT
+        fi
+    done
+    {% if iptables_dns_resolver_user %}
+    # Allow DNS requests by the local DNS resolver
+    iptables -A udp_output -p udp {{ port_opts({ 'port': 53, 'user': iptables_dns_resolver_user }) }} -j ACCEPT
+    iptables -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'user': iptables_dns_resolver_user }) }} -j ACCEPT
+    {% endif %}
+    {% endif %}
+
+    # Rules for TCP ports
+    {% for port in iptables_accept_tcp_output %}
+    iptables -A tcp_output -p tcp {{ port_opts(port) }} -j ACCEPT
+    {% endfor %}
+    {% for port in iptables_block_tcp_output %}
+    iptables -A tcp_output -p tcp {{ port_opts(port) }} -j drop_output
+    {% endfor %}
+    # Connect to OUTPUT chain
+    iptables -A OUTPUT -p tcp -j tcp_output
+
+    # Rules for UDP ports
+    {% for port in iptables_accept_udp_output %}
+    iptables -A udp_output -p udp {{ port_opts(port) }} -j ACCEPT
+    {% endfor %}
+    {% for port in iptables_block_udp_output %}
+    iptables -A udp_output -p udp {{ port_opts(port) }} -j drop_output
+    {% endfor %}
+    # Connect to OUTPUT chain
+    iptables -A OUTPUT -p udp -j udp_output
+
+    {% if iptables_output_policy == 'DROP' %}
+    {% if iptables_ntp_client_user %}
+    # Allow NTP
+    iptables -A udp_output -p udp {{ port_opts({'port': 123, 'user': iptables_ntp_client_user }) }} -j ACCEPT
+    {% endif %}
+
+    {% if iptables_smtp_client_user %}
+    # Allow the SMTP client to connect to arbitrary SMTP services
+    iptables -A tcp_output -p tcp {{ port_opts({'port': 25, 'user': iptables_smtp_client_user }) }} -j ACCEPT
+    {% endif %}
+
+    {% if ansible_facts['pkg_mgr'] == 'portage' %}
+    # Allow gentoo updates
+    # Note: Hostnames are resolved only when the rules are applied. iptables-save saves the IP addresses.
+    # Thus, the rules need to be recreated when the DNS (or the mirror selection) changes.
+    # Note: The following assumes FEATURES="userfetch usersync" and the user portage owns all repository directories.
+    (
+    emerge_info="$(emerge --info)"
+    read -r -a mirrors < <(grep -Po "(?<=GENTOO_MIRRORS=['\"]).*(?=['\"])" <<< "${emerge_info}")
+    for mirror in $(grep -Po '(?<=sync-uri: ).*' <<< "${emerge_info}"); do
+        mirrors+=( "${mirror}" )
+    done
+    for mirror in "${mirrors[@]}"; do
+        protocol="${mirror%%:*}"
+        hostname="$(cut -d / -f 3 <<< "${mirror}")"
+        port="${mirror##${protocol}://${hostname}:}"
+        if [[ "${port}" == "${mirror}" ]]; then
+            # $mirror does not actually contain a port, use the default one from the protocol
+            case "${protocol}" in
+                ftp) port=21 ;;
+                ssh) port=22 ;;
+                git+ssh) port=22 ;;
+                http) port=80 ;;
+                https) port=443 ;;
+                rsync) port=873 ;;
+            esac
+        else
+            # Strip trailing cruft from port number
+            port="${port%%/*}"
+        fi
+        if [[ -z "${hostname}" || -z "${port}" ]]; then
+            echo "Could not create iptables rule for mirror ${mirror}. Skipping." >&2
+            continue
+        fi
+        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'dest': '"${hostname}"', 'user': 'portage'}) }} -j ACCEPT
+    done
+    # During sync, portage refreshes the signing keys from the keyservers. User and address seem hardcoded.
+    iptables -A tcp_output -p tcp {{ port_opts({'port': 443, 'dest': 'hkps.pool.sks-keyservers.net', 'user': 'root'}) }} -j ACCEPT
+    )
+    {% elif ansible_facts['pkg_mgr'] == 'apt' %}
+    # Allow Debian updates
+    # Note: Hostnames are resolved only when the rules are applied. iptables-save saves the IP addresses.
+    # Thus, the rules need to be recreated when the DNS (or the sources.list) changes.
+    (
+    shopt -s nullglob
+    for mirror in $(grep -h -Po '^\s*deb(-src)? [a-z+]+://[a-z0-9.:-]+' /etc/apt/sources.list{,.d/*} | sort -u); do
+        protocol="${mirror%%:*}"
+        hostname="$(cut -d / -f 3 <<< "${mirror}")"
+        port="${mirror##${protocol}://${hostname}:}"
+        if [[ "${port}" == "${mirror}" ]]; then
+            # $mirror does not actually contain a port, use the default one from the protocol
+            case "${protocol}" in
+                ftp) port=21 ;;
+                http) port=80 ;;
+                https) port=443 ;;
+            esac
+        else
+            # Strip trailing cruft from port number
+            port="${port%%/*}"
+        fi
+        if [[ -z "${hostname}" || -z "${port}" ]]; then
+            echo "Could not create iptables rule for mirror ${mirror}. Skipping." >&2
+            continue
+        fi
+        if command -v dig; then
+            # Check if the mirror has a SRV record pointing somewhere
+            records="$(dig "_${protocol}._tcp.${hostname}" SRV +short)"
+            if [[ -n "${records}" ]]; then
+                # There is a RRSet and it may contain multiple entries
+                while read -r record; do
+                    # Add a rule for the port from the 3rd field and the hostname from the 4th field
+                    iptables -A tcp_output -p tcp {{ port_opts({'port': '"$(cut -d ' ' -f 3 <<< "${record}")"', 'dest': '"$(cut -d ' ' -f 4 <<< "${record#.}")"', 'user': '_apt'}) }} -j ACCEPT
+                done <<< "${records}"
+            fi
+        fi
+        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'dest': '"${hostname}"', 'user': '_apt'}) }} -j ACCEPT
+    done
+    )
+    {% endif %}
+
+    {% if iptables_unrestricted_users %}
+    # Allow all outgoing traffic for the following users.
+    {% for user in iptables_unrestricted_users %}
+    iptables -A OUTPUT -m owner --uid-owner '{{ user }}' -j ACCEPT
+    {% endfor %}
+    {% endif %}
+    {% if iptables_unrestricted_groups %}
+    # Allow all outgoing traffic for the following groups.
+    # Note: --gid-owner will only match the group of the process (usually primary group of the user)
+    # Therefore, the groups are resolved here and the group members are matched individually.
+    for user in $(getent group {{ iptables_unrestricted_groups | join(' ') }} | cut -d: -f4 | tr ',' $'\n' | sort -u); do
+        iptables -A OUTPUT -m owner --uid-owner "${user}" -j ACCEPT
+    done
+    {% endif %}
+    {% endif %}
+
+    {% for rule in iptables_custom_output_rules %}
+    {% if rule.startswith('-4') %}
+    iptables -4 -A OUTPUT {{ rule[3:] }}
+    {% elif rule.startswith('-6') %}
+    iptables -6 -A OUTPUT {{ rule[3:] }}
+    {% else %}
+    iptables -A OUTPUT {{ rule }}
+    {% endif %}
+    {% endfor %}
+
+    {% if iptables_output_policy == 'DROP' %}
+    # Drop everything else
+    iptables -A OUTPUT -j drop_output
+    {% endif %}
+
+
+    # Default policies
+    # This is done at the end to prevent DROP policies from interrupting existing connections.
+    iptables -P OUTPUT {{ iptables_output_policy }}
+    iptables -P INPUT {{ iptables_input_policy }}
+    iptables -P FORWARD DROP
+
+    echo "Done"
+}
+
+stop() {
+    echo "Stopping iptables..."
+    iptables -P FORWARD ACCEPT
+    iptables -P INPUT ACCEPT
+    iptables -P OUTPUT ACCEPT
+    while read -r table; do
+        iptables -t "${table}" -F
+        iptables -t "${table}" -X
+    done < /proc/net/ip_tables_names
+    echo "Done"
+}
+
+save() {
+    echo "Saving iptables rules..."
+    iptables-save > "{{ iptables_save_path }}"
+    ip6tables-save > "{{ ip6tables_save_path }}"
+    echo "Done"
+}
+
+restore() {
+    echo "Restoring iptables rules..."
+    iptables-restore < "{{ iptables_save_path }}"
+    ip6tables-restore < "{{ ip6tables_save_path }}"
+    echo "Done"
+}
+
+case $1 in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    save)
+        save
+        ;;
+    restore)
+        restore
+        ;;
+     *)
+        echo "Usage: $0 [ start | stop | restart | save | restore ]"
+        exit 1
+esac
