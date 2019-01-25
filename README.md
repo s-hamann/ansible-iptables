@@ -34,6 +34,18 @@ Logging is limited to 1 packet per second.
 Whether to allow incoming *and* outgoing ICMP and ICMPv6 echo requests.
 Valid values are `True` (default) and `False`.
 
+`iptables_allow_broadcast`  
+Whether to allow incoming IPv4 broadcast traffic.
+Valid values are `True` (default) and `False`.
+
+`iptables_allow_multicast`  
+Whether to allow incoming IPv4 multicast traffic.
+Valid values are `True` (default) and `False`.
+
+`iptables_allow_anycast`  
+Whether to allow incoming IPv4 anycast traffic.
+Valid values are `True` (default) and `False`.
+
 `iptables_accept_ip_input`, `iptables_block_ip_input`, `iptables_accept_ip_output`, `iptables_block_ip_output`  
 Each of these variables contains a list of IP addresses (or hostnames) for which all traffic should be accepted/blocked in the `INPUT`/`OUTPUT` chain.
 The rules are set up early in the respective chains, which means that they take precedence over almost all other rules.

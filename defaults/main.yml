@@ -4,6 +4,9 @@ iptables_output_policy: 'ACCEPT'
 iptables_log_dropped_input: False
 iptables_log_dropped_output: False
 iptables_allow_ping: True
+iptables_allow_broadcast: True
+iptables_allow_multicast: True
+iptables_allow_anycast: True
 iptables_accept_ip_input: []
 iptables_block_ip_input: []
 iptables_accept_tcp_input: []

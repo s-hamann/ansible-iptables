@@ -116,9 +116,15 @@ start() {
     #
 
     # Ignore Broadcast, Multicast and Anycast addresses
+    {% if not iptables_allow_broadcast %}
     iptables -4 -A INPUT -m addrtype --dst-type BROADCAST -j drop_input
+    {% endif %}
+    {% if not iptables_allow_multicast %}
     iptables -4 -A INPUT -m addrtype --dst-type MULTICAST -j drop_input
+    {% endif %}
+    {% if not iptables_allow_anycast %}
     iptables -4 -A INPUT -m addrtype --dst-type ANYCAST -j drop_input
+    {% endif %}
 
     # Allow *all* traffic from the following IPs
     {% for ip in iptables_accept_ip_input %}
