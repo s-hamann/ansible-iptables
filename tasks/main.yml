@@ -33,5 +33,5 @@
   service:
     name: "{{ item }}"
     enabled: true
-    state: started
+    state: "{{ ansible_facts['is_chroot'] | ternary(omit, 'started') }}"
   loop: "{{ iptables_services }}"
