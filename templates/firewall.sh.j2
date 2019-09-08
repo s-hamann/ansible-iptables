@@ -294,7 +294,7 @@ start() {
         iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'dest': '"${hostname}"', 'user': 'portage'}) }} -j ACCEPT
     done
     # During sync, portage refreshes the signing keys from the keyservers. User and address seem hardcoded.
-    iptables -A tcp_output -p tcp {{ port_opts({'port': 443, 'dest': 'hkps.pool.sks-keyservers.net', 'user': 'root'}) }} -j ACCEPT
+    iptables -A tcp_output -p tcp {{ port_opts({'port': 443, 'dest': 'keys.gentoo.org', 'user': 'root'}) }} -j ACCEPT
     )
     {% elif ansible_facts['pkg_mgr'] == 'apt' %}
     # Allow Debian updates
