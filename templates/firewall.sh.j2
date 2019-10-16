@@ -302,7 +302,7 @@ start() {
     # Thus, the rules need to be recreated when the DNS (or the sources.list) changes.
     (
     shopt -s nullglob
-    for mirror in $(grep -h -Po '^\s*deb(-src)? [a-z+]+://[a-z0-9.:-]+' /etc/apt/sources.list{,.d/*} | sort -u); do
+    for mirror in $(grep -h -Po '^\s*deb(-src)? \K[a-z+]+://[a-z0-9.:-]+' /etc/apt/sources.list{,.d/*} | sort -u); do
         protocol="${mirror%%:*}"
         hostname="$(cut -d / -f 3 <<< "${mirror}")"
         port="${mirror##${protocol}://${hostname}:}"
@@ -321,14 +321,14 @@ start() {
             echo "Could not create iptables rule for mirror ${mirror}. Skipping." >&2
             continue
         fi
-        if command -v dig; then
+        if command -v dig >/dev/null; then
             # Check if the mirror has a SRV record pointing somewhere
             records="$(dig "_${protocol}._tcp.${hostname}" SRV +short)"
             if [[ -n "${records}" ]]; then
                 # There is a RRSet and it may contain multiple entries
                 while read -r record; do
                     # Add a rule for the port from the 3rd field and the hostname from the 4th field
-                    iptables -A tcp_output -p tcp {{ port_opts({'port': '"$(cut -d ' ' -f 3 <<< "${record}")"', 'dest': '"$(cut -d ' ' -f 4 <<< "${record#.}")"', 'user': '_apt'}) }} -j ACCEPT
+                    iptables -A tcp_output -p tcp {{ port_opts({'port': '"$(cut -d '' '' -f 3 <<< "${record}")"', 'dest': '"$(cut -d '' '' -f 4 <<< "${record#.}")"', 'user': '_apt'}) }} -j ACCEPT
                 done <<< "${records}"
             fi
         fi
