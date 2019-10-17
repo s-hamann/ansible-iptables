@@ -335,6 +335,34 @@ start() {
         iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'dest': '"${hostname}"', 'user': '_apt'}) }} -j ACCEPT
     done
     )
+    {% elif ansible_facts['pkg_mgr'] == 'apk' %}
+    # Allow Alpine updates
+    # Note: Hostnames are resolved only when the rules are applied. iptables-save saves the IP addresses.
+    # Thus, the rules need to be recreated when the DNS (or the mirror selection) changes.
+    (
+    shopt -s nullglob
+    for mirror in $(grep -h -Po '^\s*(@[a-z]+ )?\K[a-z+]+://[a-z0-9.:-]+' /etc/apk/repositories | sort -u); do
+        protocol="${mirror%%:*}"
+        hostname="$(cut -d / -f 3 <<< "${mirror}")"
+        port="${mirror##${protocol}://${hostname}:}"
+        if [[ "${port}" == "${mirror}" ]]; then
+            # $mirror does not actually contain a port, use the default one from the protocol
+            case "${protocol}" in
+                ftp) port=21 ;;
+                http) port=80 ;;
+                https) port=443 ;;
+            esac
+        else
+            # Strip trailing cruft from port number
+            port="${port%%/*}"
+        fi
+        if [[ -z "${hostname}" || -z "${port}" ]]; then
+            echo "Could not create iptables rule for mirror ${mirror}. Skipping." >&2
+            continue
+        fi
+        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'dest': '"${hostname}"', 'user': 'root'}) }} -j ACCEPT
+    done
+    )
     {% endif %}
 
     {% if iptables_unrestricted_users %}

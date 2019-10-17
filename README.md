@@ -6,7 +6,7 @@ This role supports ingress and egress filtering.
 When egress filtering is enabled, some common protocols are automatically allowed.
 This includes:
 * DNS requests to the name servers in `/etc/resolv.conf`
-* Package management (Gentoo, Debian)
+* Package management (Gentoo, Debian, Alpine)
 
 Requirements
 ------------
