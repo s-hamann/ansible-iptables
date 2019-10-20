@@ -7,7 +7,7 @@
 {% if port is number -%}
 --dport {{ port }}
 {%- else -%}
---dport {{ port.port }}{{ ' --source ' ~ port.source if port.source is defined else '' }}{{ ' --destination ' ~ port.dest if port.dest is defined else '' }}{{ ' -m owner --uid-owner ' ~ port.user if port.user is defined else '' }}
+--dport {{ port.port }}{{ ' --destination ' ~ port.dest if port.dest is defined else '' }}{{ ' --sport ' ~ port.sport if port.sport is defined else '' }}{{ ' --source ' ~ port.source if port.source is defined else '' }}{{ ' -m owner --uid-owner ' ~ port.user if port.user is defined else '' }}
 {%- endif %}
 {% endmacro %}
 

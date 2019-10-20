@@ -59,6 +59,7 @@ The list entries can simply be port numbers, which sets up a rule for these port
 It is also possible to create more elaborate rules by setting a list entry to a dictionary.
 In this case, the dictionary must to contain the port number in the key `port`.
 A number of optional keys can be added:
+* `sport`: The source port to match on.
 * `source`: The source address to match on.
 * `destination`: The destination address to match on.
 * `user`: The name of the local user that the traffic originates from. Only works on the `OUTPUT` chain.
