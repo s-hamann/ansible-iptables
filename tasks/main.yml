@@ -24,6 +24,8 @@
 
 - name: 'activate and persist rules'
   command: "{{ item }}"
+  async: 12
+  poll: 1
   when: "_iptables_script is changed"
   loop:
     - '/usr/local/sbin/firewall.sh restart'
