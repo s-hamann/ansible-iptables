@@ -1,7 +1,4 @@
 iptables_packages:
   - net-firewall/iptables
-iptables_services:
-  - iptables
-  - ip6tables
 iptables_save_path: '/var/lib/iptables/rules-save'
 ip6tables_save_path: '/var/lib/ip6tables/rules-save'

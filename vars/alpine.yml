@@ -1,8 +1,5 @@
 iptables_packages:
   - iptables
   - ip6tables
-iptables_services:
-  - iptables
-  - ip6tables
 iptables_save_path: '/etc/iptables/rules-save'
 ip6tables_save_path: '/etc/iptables/rules6-save'
