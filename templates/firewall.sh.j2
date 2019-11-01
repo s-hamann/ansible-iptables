@@ -3,11 +3,11 @@
 # iptables configuration script v0.6
 # {{ ansible_managed }}
 {# This returns the iptables options for a port-specific rule #}
-{% macro port_opts(port) %}
+{% macro port_opts(chain, protocol, port) %}
 {% if port is number -%}
---dport {{ port }}
+-A {{ chain }} -p {{ protocol }} --dport {{ port }}
 {%- else -%}
---dport {{ port.port }}{{ ' --destination ' ~ port.destination if port.destination is defined else '' }}{{ ' --sport ' ~ port.sport if port.sport is defined else '' }}{{ ' --source ' ~ port.source if port.source is defined else '' }}{{ ' -m owner --uid-owner ' ~ port.user if port.user is defined else '' }}
+{% if port.destination | default(false) | ipv4 or port.source | default(false) | ipv4 %}-4 {% elif port.destination | default(false) | ipv6 or port.source | default(false) | ipv6 %}-6 {% endif %}-A {{ chain }} -p {{ protocol }} --dport {{ port.port }}{{ ' --destination ' ~ port.destination if port.destination is defined else '' }}{{ ' --sport ' ~ port.sport if port.sport is defined else '' }}{{ ' --source ' ~ port.source if port.source is defined else '' }}{{ ' -m owner --uid-owner ' ~ port.user if port.user is defined else '' }}
 {%- endif %}
 {% endmacro %}
 
@@ -128,11 +128,11 @@ start() {
 
     # Allow *all* traffic from the following IPs
     {% for ip in iptables_accept_ip_input %}
-    iptables -A INPUT --source "{{ ip }}" -j ACCEPT
+    iptables {% if ip | ipv4 %}-4 {% elif ip | ipv6 %}-6 {% endif %}-A INPUT --source "{{ ip }}" -j ACCEPT
     {% endfor %}
     # Block *all* traffic from the following IPs
     {% for ip in iptables_block_ip_input %}
-    iptables -A INPUT --source "{{ ip }}" -j drop_input
+    iptables {% if ip | ipv4 %}-4 {% elif ip | ipv6 %}-6 {% endif %}-A INPUT --source "{{ ip }}" -j drop_input
     {% endfor %}
 
     # Handle ICMP
@@ -144,10 +144,10 @@ start() {
     iptables -N tcp_input
     iptables -F tcp_input
     {% for port in iptables_accept_tcp_input %}
-    iptables -A tcp_input -p tcp {{ port_opts(port) }} -j ACCEPT
+    iptables {{ port_opts('tcp_input', 'tcp', port) }} -j ACCEPT
     {% endfor %}
     {% for port in iptables_block_tcp_input %}
-    iptables -A tcp_input -p tcp {{ port_opts(port) }} -j drop_input
+    iptables {{ port_opts('tcp_input', 'tcp', port) }} -j drop_input
     {% endfor %}
     # Connect to INPUT chain
     iptables -A INPUT -p tcp -j tcp_input
@@ -156,10 +156,10 @@ start() {
     iptables -N udp_input
     iptables -F udp_input
     {% for port in iptables_accept_udp_input %}
-    iptables -A udp_input -p udp {{ port_opts(port) }} -j ACCEPT
+    iptables {{ port_opts('udp_input', 'udp', port) }} -j ACCEPT
     {% endfor %}
     {% for port in iptables_block_udp_input %}
-    iptables -A udp_input -p udp {{ port_opts(port) }} -j drop_input
+    iptables {{ port_opts('udp_input', 'udp', port) }} -j drop_input
     {% endfor %}
     # Connect to INPUT chain
     iptables -A INPUT -p udp -j udp_input
@@ -192,11 +192,11 @@ start() {
 
     # Allow *all* traffic to the following IPs
     {% for ip in iptables_accept_ip_output %}
-    iptables -A OUTPUT --source "{{ ip }}" -j ACCEPT
+    iptables {% if ip | ipv4 %}-4 {% elif ip | ipv6 %}-6 {% endif %}-A OUTPUT --source "{{ ip }}" -j ACCEPT
     {% endfor %}
     # Block *all* traffic to the following IPs
     {% for ip in iptables_block_ip_output %}
-    iptables -A OUTPUT --source "{{ ip }}" -j drop_output
+    iptables {% if ip | ipv4 %}-4 {% elif ip | ipv6 %}-6 {% endif %}-A OUTPUT --source "{{ ip }}" -j drop_output
     {% endfor %}
 
     # Handle ICMP
@@ -209,40 +209,40 @@ start() {
     grep -Po '^nameserver\s*\K([0-2]?[0-9]{1,2}\.){3}[0-2]?[0-9]{1,2}' /etc/resolv.conf | while read -r ip4; do
         if [[ "${ip4}" != 127.* ]]; then
             # This intentionally allows both UDP and TCP
-            iptables -4 -A udp_output -p udp {{ port_opts({ 'port': 53, 'destination': '"${ip4}"' }) }} -j ACCEPT
-            iptables -4 -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'destination': '"${ip4}"' }) }} -j ACCEPT
+            iptables -4 {{ port_opts('udp_output', 'udp', { 'port': 53, 'destination': '"${ip4}"' }) }} -j ACCEPT
+            iptables -4 {{ port_opts('tcp_output', 'tcp', { 'port': 53, 'destination': '"${ip4}"' }) }} -j ACCEPT
         fi
     done
     grep -Poi '^nameserver\s*\K([0-9a-f]{1,4}:){1,7}(:[0-9a-f]{1,4}){1,7}' /etc/resolv.conf | while read -r ip6; do
         if [[ "${ip6}" != ::1 ]]; then
             # This intentionally allows both UDP and TCP
-            iptables -6 -A udp_output -p udp {{ port_opts({ 'port': 53, 'destination': '"${ip6}"' }) }} -j ACCEPT
-            iptables -6 -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'destination': '"${ip6}"' }) }} -j ACCEPT
+            iptables -6 {{ port_opts('udp_output', 'udp', { 'port': 53, 'destination': '"${ip6}"' }) }} -j ACCEPT
+            iptables -6 {{ port_opts('tcp_output', 'tcp', { 'port': 53, 'destination': '"${ip6}"' }) }} -j ACCEPT
         fi
     done
     {% if iptables_dns_resolver_user %}
     # Allow DNS requests by the local DNS resolver
-    iptables -A udp_output -p udp {{ port_opts({ 'port': 53, 'user': iptables_dns_resolver_user }) }} -j ACCEPT
-    iptables -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'user': iptables_dns_resolver_user }) }} -j ACCEPT
+    iptables {{ port_opts('udp_output', 'udp', { 'port': 53, 'user': iptables_dns_resolver_user }) }} -j ACCEPT
+    iptables {{ port_opts('tcp_output', 'tcp', { 'port': 53, 'user': iptables_dns_resolver_user }) }} -j ACCEPT
     {% endif %}
     {% endif %}
 
     # Rules for TCP ports
     {% for port in iptables_accept_tcp_output %}
-    iptables -A tcp_output -p tcp {{ port_opts(port) }} -j ACCEPT
+    iptables {{ port_opts('tcp_output', 'tcp', port) }} -j ACCEPT
     {% endfor %}
     {% for port in iptables_block_tcp_output %}
-    iptables -A tcp_output -p tcp {{ port_opts(port) }} -j drop_output
+    iptables {{ port_opts('tcp_output', 'tcp', port) }} -j drop_output
     {% endfor %}
     # Connect to OUTPUT chain
     iptables -A OUTPUT -p tcp -j tcp_output
 
     # Rules for UDP ports
     {% for port in iptables_accept_udp_output %}
-    iptables -A udp_output -p udp {{ port_opts(port) }} -j ACCEPT
+    iptables {{ port_opts('udp_output', 'udp', port) }} -j ACCEPT
     {% endfor %}
     {% for port in iptables_block_udp_output %}
-    iptables -A udp_output -p udp {{ port_opts(port) }} -j drop_output
+    iptables {{ port_opts('udp_output', 'udp', port) }} -j drop_output
     {% endfor %}
     # Connect to OUTPUT chain
     iptables -A OUTPUT -p udp -j udp_output
@@ -250,12 +250,12 @@ start() {
     {% if iptables_output_policy == 'DROP' %}
     {% if iptables_ntp_client_user %}
     # Allow NTP
-    iptables -A udp_output -p udp {{ port_opts({'port': 123, 'user': iptables_ntp_client_user }) }} -j ACCEPT
+    iptables {{ port_opts('udp_output', 'udp', {'port': 123, 'user': iptables_ntp_client_user }) }} -j ACCEPT
     {% endif %}
 
     {% if iptables_smtp_client_user %}
     # Allow the SMTP client to connect to arbitrary SMTP services
-    iptables -A tcp_output -p tcp {{ port_opts({'port': 25, 'user': iptables_smtp_client_user }) }} -j ACCEPT
+    iptables {{ port_opts('tcp_output', 'tcp', {'port': 25, 'user': iptables_smtp_client_user }) }} -j ACCEPT
     {% endif %}
 
     {% if ansible_facts['pkg_mgr'] == 'portage' %}
@@ -292,10 +292,10 @@ start() {
             echo "Could not create iptables rule for mirror ${mirror}. Skipping." >&2
             continue
         fi
-        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'destination': '"${hostname}"', 'user': 'portage'}) }} -j ACCEPT
+        iptables {{ port_opts('tcp_output', 'tcp', {'port': '"${port}"', 'destination': '"${hostname}"', 'user': 'portage'}) }} -j ACCEPT
     done
     # During sync, portage refreshes the signing keys from the keyservers. User and address seem hardcoded.
-    iptables -A tcp_output -p tcp {{ port_opts({'port': 443, 'destination': 'keys.gentoo.org', 'user': 'root'}) }} -j ACCEPT
+    iptables {{ port_opts('tcp_output', 'tcp', {'port': 443, 'destination': 'keys.gentoo.org', 'user': 'root'}) }} -j ACCEPT
     )
     {% elif ansible_facts['pkg_mgr'] == 'apt' %}
     # Allow Debian updates
@@ -329,11 +329,11 @@ start() {
                 # There is a RRSet and it may contain multiple entries
                 while read -r record; do
                     # Add a rule for the port from the 3rd field and the hostname from the 4th field
-                    iptables -A tcp_output -p tcp {{ port_opts({'port': '"$(cut -d '' '' -f 3 <<< "${record}")"', 'destination': '"$(cut -d '' '' -f 4 <<< "${record#.}")"', 'user': '_apt'}) }} -j ACCEPT
+                    iptables {{ port_opts('tcp_output', 'tcp', {'port': '"$(cut -d '' '' -f 3 <<< "${record}")"', 'destination': '"$(cut -d '' '' -f 4 <<< "${record#.}")"', 'user': '_apt'}) }} -j ACCEPT
                 done <<< "${records}"
             fi
         fi
-        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'destination': '"${hostname}"', 'user': '_apt'}) }} -j ACCEPT
+        iptables {{ port_opts('tcp_output', 'tcp', {'port': '"${port}"', 'destination': '"${hostname}"', 'user': '_apt'}) }} -j ACCEPT
     done
     )
     {% elif ansible_facts['pkg_mgr'] == 'apk' %}
@@ -361,7 +361,7 @@ start() {
             echo "Could not create iptables rule for mirror ${mirror}. Skipping." >&2
             continue
         fi
-        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'destination': '"${hostname}"', 'user': 'root'}) }} -j ACCEPT
+        iptables {{ port_opts('tcp_output', 'tcp', {'port': '"${port}"', 'destination': '"${hostname}"', 'user': 'root'}) }} -j ACCEPT
     done
     )
     {% endif %}
