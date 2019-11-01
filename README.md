@@ -116,6 +116,46 @@ iptables_custom_input_rules:
   - '-p tcp --dport 23 --comment "just for the sake of the example" -j drop_input'
 ```
 
+### Managing rules using groups
+
+This role uses several list variables (e.g. `iptables_accept_tcp_input`) to configure the firewall.
+It may make sense to define them in groups.
+However, when using the variable name directly, Ansible does not merge the lists.
+Instead, the last defined variable overwrites earlier definitions.
+
+To facilitate group-driven firewall configuration and avoid duplication of data, this role allows appending an arbitrary suffix to each list's variable name to make it unique.
+These lists are then merged into one.
+
+For example, the group `ssh-servers` may define:
+```yaml
+iptables_accept_tcp_input_ssh:
+  - 22
+```
+And the group `web-servers` may define:
+```yaml
+iptables_accept_tcp_input_web:
+  - 80
+  - 443
+```
+For a system in both groups, this would result in:
+```yaml
+iptables_accept_tcp_input:
+  - 22
+  - 80
+  - 443
+```
+Lists defined this way can be overwritten in sub-groups, if desired.
+For example, a group `secure-web-servers`, which is a child of `web-servers`, could redefined the list:
+```yaml
+iptables_accept_tcp_input_web:
+  - 443
+```
+A system in this group would then not accept connection on TCP port 80.
+
+Notes:
+* Suffixes can be completely arbitrary but an `_` needs to be between the original list name and the suffix.
+* The resulting lists are lexicographically ordered by the suffix name.
+
 License
 -------
 

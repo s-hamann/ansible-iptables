@@ -1,0 +1,8 @@
+---
+# This task extends the list variable indicated by 'var_name' to include the
+# contents of all variables in the host's scope whose name begins with the name
+# of the target list, followed by '_' and something arbitrary.
+- name: "combine {{ var_name }} from components"
+  set_fact:
+    {"{{ var_name }}": "{{ lookup('vars', var_name) | default([]) + lookup('vars', item) | flatten }}"}
+  loop: "{{ query('varnames', '^' ~ var_name ~ '_.*') | sort | list }}"

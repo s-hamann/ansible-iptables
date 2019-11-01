@@ -11,6 +11,27 @@
     loop_var: vars_file
   when: "(vars_file is abs and vars_file is file) or (vars_file is not abs and (role_path ~ '/vars/' ~ vars_file) is file)"
 
+- include_tasks: combine_list.yml
+  loop:
+    - 'iptables_accept_ip_input'
+    - 'iptables_block_ip_input'
+    - 'iptables_accept_ip_output'
+    - 'iptables_block_ip_output'
+    - 'iptables_accept_tcp_input'
+    - 'iptables_block_tcp_input'
+    - 'iptables_accept_udp_input'
+    - 'iptables_block_udp_input'
+    - 'iptables_accept_tcp_output'
+    - 'iptables_block_tcp_output'
+    - 'iptables_accept_udp_output'
+    - 'iptables_block_udp_output'
+    - 'iptables_unrestricted_users'
+    - 'iptables_unrestricted_groups'
+    - 'iptables_custom_input_rules'
+    - 'iptables_custom_output_rules'
+  loop_control:
+    loop_var: var_name
+
 - name: 'install iptables'
   package:
     name: "{{ item }}"
