@@ -7,7 +7,7 @@
 {% if port is number -%}
 --dport {{ port }}
 {%- else -%}
---dport {{ port.port }}{{ ' --destination ' ~ port.dest if port.dest is defined else '' }}{{ ' --sport ' ~ port.sport if port.sport is defined else '' }}{{ ' --source ' ~ port.source if port.source is defined else '' }}{{ ' -m owner --uid-owner ' ~ port.user if port.user is defined else '' }}
+--dport {{ port.port }}{{ ' --destination ' ~ port.destination if port.destination is defined else '' }}{{ ' --sport ' ~ port.sport if port.sport is defined else '' }}{{ ' --source ' ~ port.source if port.source is defined else '' }}{{ ' -m owner --uid-owner ' ~ port.user if port.user is defined else '' }}
 {%- endif %}
 {% endmacro %}
 
@@ -209,15 +209,15 @@ start() {
     grep -Po '^nameserver\s*\K([0-2]?[0-9]{1,2}\.){3}[0-2]?[0-9]{1,2}' /etc/resolv.conf | while read -r ip4; do
         if [[ "${ip4}" != 127.* ]]; then
             # This intentionally allows both UDP and TCP
-            iptables -4 -A udp_output -p udp {{ port_opts({ 'port': 53, 'dest': '"${ip4}"' }) }} -j ACCEPT
-            iptables -4 -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'dest': '"${ip4}"' }) }} -j ACCEPT
+            iptables -4 -A udp_output -p udp {{ port_opts({ 'port': 53, 'destination': '"${ip4}"' }) }} -j ACCEPT
+            iptables -4 -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'destination': '"${ip4}"' }) }} -j ACCEPT
         fi
     done
     grep -Poi '^nameserver\s*\K([0-9a-f]{1,4}:){1,7}(:[0-9a-f]{1,4}){1,7}' /etc/resolv.conf | while read -r ip6; do
         if [[ "${ip6}" != ::1 ]]; then
             # This intentionally allows both UDP and TCP
-            iptables -6 -A udp_output -p udp {{ port_opts({ 'port': 53, 'dest': '"${ip6}"' }) }} -j ACCEPT
-            iptables -6 -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'dest': '"${ip6}"' }) }} -j ACCEPT
+            iptables -6 -A udp_output -p udp {{ port_opts({ 'port': 53, 'destination': '"${ip6}"' }) }} -j ACCEPT
+            iptables -6 -A tcp_output -p tcp {{ port_opts({ 'port': 53, 'destination': '"${ip6}"' }) }} -j ACCEPT
         fi
     done
     {% if iptables_dns_resolver_user %}
@@ -292,10 +292,10 @@ start() {
             echo "Could not create iptables rule for mirror ${mirror}. Skipping." >&2
             continue
         fi
-        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'dest': '"${hostname}"', 'user': 'portage'}) }} -j ACCEPT
+        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'destination': '"${hostname}"', 'user': 'portage'}) }} -j ACCEPT
     done
     # During sync, portage refreshes the signing keys from the keyservers. User and address seem hardcoded.
-    iptables -A tcp_output -p tcp {{ port_opts({'port': 443, 'dest': 'keys.gentoo.org', 'user': 'root'}) }} -j ACCEPT
+    iptables -A tcp_output -p tcp {{ port_opts({'port': 443, 'destination': 'keys.gentoo.org', 'user': 'root'}) }} -j ACCEPT
     )
     {% elif ansible_facts['pkg_mgr'] == 'apt' %}
     # Allow Debian updates
@@ -329,11 +329,11 @@ start() {
                 # There is a RRSet and it may contain multiple entries
                 while read -r record; do
                     # Add a rule for the port from the 3rd field and the hostname from the 4th field
-                    iptables -A tcp_output -p tcp {{ port_opts({'port': '"$(cut -d '' '' -f 3 <<< "${record}")"', 'dest': '"$(cut -d '' '' -f 4 <<< "${record#.}")"', 'user': '_apt'}) }} -j ACCEPT
+                    iptables -A tcp_output -p tcp {{ port_opts({'port': '"$(cut -d '' '' -f 3 <<< "${record}")"', 'destination': '"$(cut -d '' '' -f 4 <<< "${record#.}")"', 'user': '_apt'}) }} -j ACCEPT
                 done <<< "${records}"
             fi
         fi
-        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'dest': '"${hostname}"', 'user': '_apt'}) }} -j ACCEPT
+        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'destination': '"${hostname}"', 'user': '_apt'}) }} -j ACCEPT
     done
     )
     {% elif ansible_facts['pkg_mgr'] == 'apk' %}
@@ -361,7 +361,7 @@ start() {
             echo "Could not create iptables rule for mirror ${mirror}. Skipping." >&2
             continue
         fi
-        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'dest': '"${hostname}"', 'user': 'root'}) }} -j ACCEPT
+        iptables -A tcp_output -p tcp {{ port_opts({'port': '"${port}"', 'destination': '"${hostname}"', 'user': 'root'}) }} -j ACCEPT
     done
     )
     {% endif %}
