@@ -2,21 +2,37 @@
 #!/bin/bash
 # iptables configuration script v0.6
 # {{ ansible_managed }}
-{# This returns the iptables options for a port-specific rule #}
-{% macro port_opts(chain, protocol, port) %}
-{% if port is number -%}
--A {{ chain }} -p {{ protocol }} --dport {{ port }}
-{%- else -%}
-{% if port.destination | default(false) | ipv4 or port.source | default(false) | ipv4 %}
+{# This returns '-4' if any of the given addresses are IPv4 addresses, '-6' if they are not, but any are IPv6 addresses, andnothing if neither IPv4 nor IPv6 addresses are given #}
+{% macro ip_family_prefix(addresses) %}
+{% if addresses | map('replace', '!', '') | ipv4 %}
 -4 {# #}
-{% elif port.destination | default(false) | ipv6 or port.source | default(false) | ipv6 %}
+{% elif addresses | map('replace', '!', '') | ipv6 %}
 -6 {# #}
 {% endif %}
--A {{ chain }} -p {{ protocol }} --dport {{ port.port }}{# #}
-{{ ' --destination ' ~ port.destination if port.destination is defined else '' }}{# #}
-{{ ' --sport ' ~ port.sport if port.sport is defined else '' }}{# #}
-{{ ' --source ' ~ port.source if port.source is defined else '' }}{# #}
-{{ ' -m owner --uid-owner ' ~ port.user if port.user is defined else '' }}{# #}
+{% endmacro %}
+{# This returns parameter and the value, possibly prefixed with ! #}
+{% macro match_opts(parameter, value) %}
+{% if (value | string).startswith('!') %} !{% endif %} {{ parameter }} {{ value | replace('!', '') }}
+{%- endmacro %}
+{# This returns the iptables options for a port-specific rule #}
+{% macro port_opts(chain, protocol, port) %}
+{% if port | replace('!', '') | int -%}
+-A {{ chain }} -p {{ protocol }}{{ match_opts('--dport', port) }}
+{%- else -%}
+{{ ip_family_prefix([port.destination | default(None), port.source | default(None)]) }}{# #}
+-A {{ chain }} -p {{ protocol }}{{ match_opts('--dport', port.port) }}{# #}
+{% if port.destination is defined %}
+{{ match_opts('--destination', port.destination) }}
+{%- endif %}
+{% if port.sport is defined %}
+{{ match_opts('--sport', port.sport) }}
+{%- endif %}
+{% if port.source is defined %}
+{{ match_opts('--source', port.source) }}
+{%- endif %}
+{% if port.user is defined %}
+ -m owner{{ match_opts('--uid-owner', port.user) }}
+{%- endif %}
 {%- endif %}
 {% endmacro %}
 
@@ -137,11 +153,11 @@ start() {
 
     # Allow *all* traffic from the following IPs
     {% for ip in iptables_accept_ip_input %}
-    iptables {% if ip | ipv4 %}-4 {% elif ip | ipv6 %}-6 {% endif %}-A INPUT --source "{{ ip }}" -j ACCEPT
+    iptables {{ ip_family_prefix([ip]) }}-A INPUT{{ match_opts('--source', ip) }} -j ACCEPT
     {% endfor %}
     # Block *all* traffic from the following IPs
     {% for ip in iptables_block_ip_input %}
-    iptables {% if ip | ipv4 %}-4 {% elif ip | ipv6 %}-6 {% endif %}-A INPUT --source "{{ ip }}" -j drop_input
+    iptables {{ ip_family_prefix([ip]) }}-A INPUT{{ match_opts('--source', ip) }} -j drop_input
     {% endfor %}
 
     # Handle ICMP
@@ -201,11 +217,11 @@ start() {
 
     # Allow *all* traffic to the following IPs
     {% for ip in iptables_accept_ip_output %}
-    iptables {% if ip | ipv4 %}-4 {% elif ip | ipv6 %}-6 {% endif %}-A OUTPUT --source "{{ ip }}" -j ACCEPT
+    iptables {{ ip_family_prefix([ip]) }}-A OUTPUT{{ match_opts('--destination', ip) }} -j ACCEPT
     {% endfor %}
     # Block *all* traffic to the following IPs
     {% for ip in iptables_block_ip_output %}
-    iptables {% if ip | ipv4 %}-4 {% elif ip | ipv6 %}-6 {% endif %}-A OUTPUT --source "{{ ip }}" -j drop_output
+    iptables {{ ip_family_prefix([ip]) }}-A OUTPUT{{ match_opts('--destination', ip) }} -j drop_output
     {% endfor %}
 
     # Handle ICMP

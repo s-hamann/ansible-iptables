@@ -48,6 +48,7 @@ Valid values are `True` (default) and `False`.
 
 `iptables_accept_ip_input`, `iptables_block_ip_input`, `iptables_accept_ip_output`, `iptables_block_ip_output`  
 Each of these variables contains a list of IP addresses (or hostnames) for which all traffic should be accepted/blocked in the `INPUT`/`OUTPUT` chain.
+To invert the match, IP addresses (and hostnames) can be prefixed with `!`.
 The rules are set up early in the respective chains, which means that they take precedence over almost all other rules.
 
 `iptables_accept_tcp_input`, `iptables_block_tcp_input`, `iptables_accept_udp_input`, `iptables_block_udp_input`, `iptables_accept_tcp_output`, `iptables_block_tcp_output`, `iptables_accept_udp_output`, `iptables_block_udp_output`  
@@ -64,6 +65,8 @@ A number of optional keys can be added:
 * `destination`: The destination address to match on.
 * `user`: The name of the local user that the traffic originates from. Only works on the `OUTPUT` chain.
 
+Ports, addresses and users can be prefixed with `!` to invert the match.
+
 Example:
 ```yaml
 iptables_accept_tcp_input:
@@ -71,6 +74,7 @@ iptables_accept_tcp_input:
   - 23
   - { port: 80, source: 10.0.0.0/8 }
   - { port: 80, source: 192.168.0.0/16 }
+  - { port: 443, source: !172.16.0.0/12 }
 iptables_block_udp_output:
   - { port: 53, user: root }
   - 123
