@@ -3,5 +3,7 @@ iptables_packages:
   - iptables-openrc
   - ip6tables
   - ip6tables-openrc
+  - bash
+  - "{{ 'grep' if iptables_output_policy == 'DROP' else None }}"
 iptables_save_path: '/etc/iptables/rules-save'
 ip6tables_save_path: '/etc/iptables/rules6-save'

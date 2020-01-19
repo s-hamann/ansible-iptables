@@ -1,5 +1,7 @@
 iptables_packages:
   - iptables
+  - bash
+  - "{{ 'grep' if iptables_output_policy == 'DROP' else None }}"
 iptables_services:
   - iptables
   - ip6tables

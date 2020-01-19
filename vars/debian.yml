@@ -1,6 +1,8 @@
 iptables_packages:
   - iptables
   - iptables-persistent
+  - bash
+  - "{{ 'grep' if iptables_output_policy == 'DROP' else None }}"
 iptables_services:
   - netfilter-persistent
 iptables_save_path: '/etc/iptables/rules.v4'

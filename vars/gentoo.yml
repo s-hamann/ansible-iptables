@@ -1,4 +1,6 @@
 iptables_packages:
   - net-firewall/iptables
+  - app-shells/bash
+  - "{{ 'sys-apps/grep' if iptables_output_policy == 'DROP' else None }}"
 iptables_save_path: '/var/lib/iptables/rules-save'
 ip6tables_save_path: '/var/lib/ip6tables/rules-save'
