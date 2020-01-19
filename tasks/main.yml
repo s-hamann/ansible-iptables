@@ -32,11 +32,10 @@
   loop_control:
     loop_var: var_name
 
-- name: 'install iptables'
+- name: 'install required software'
   package:
-    name: "{{ item }}"
+    name: "{{ iptables_packages }}"
     state: present
-  loop: "{{ iptables_packages }}"
 
 - name: 'install iptables setup script'
   template:
