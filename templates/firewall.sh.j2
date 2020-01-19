@@ -276,6 +276,10 @@ start() {
     {% if iptables_ntp_client_user %}
     # Allow NTP
     iptables {{ port_opts('udp_output', 'udp', {'port': 123, 'user': iptables_ntp_client_user }) }} -j ACCEPT
+    grep -Pho '(?<=^server )[a-z0-9.:-]+:[0-9]+(?= nts$)' /etc/ntp.conf /etc/ntp.d/* /etc/ntpsec/ntp.conf /etc/ntpsec/ntp.d/* 2>/dev/null | while read -r nts_server; do
+        # Allow NTS
+        iptables {{ port_opts('tcp_output', 'tcp', {'destination': '${nts_server%:*}', 'port': '${nts_server##*:}', 'user': iptables_ntp_client_user }) }} -j ACCEPT
+    done
     {% endif %}
 
     {% if iptables_smtp_client_user %}
