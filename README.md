@@ -27,24 +27,24 @@ Default policy for `OUTPUT` chain if nothing else matches
 Valid values are `ACCEPT` (default) and `DROP`.
 
 `iptables_log_dropped_input`, `iptables_log_dropped_output`  
-When set to `True`, dropped packages on the `INPUT`/`OUTPUT` chain are logged.
+When set to `true`, dropped packages on the `INPUT`/`OUTPUT` chain are logged.
 Logging is limited to 1 packet per second.
 
 `iptables_allow_ping`  
 Whether to allow incoming *and* outgoing ICMP and ICMPv6 echo requests.
-Valid values are `True` (default) and `False`.
+Valid values are `true` (default) and `false`.
 
 `iptables_allow_broadcast`  
 Whether to allow incoming IPv4 broadcast traffic.
-Valid values are `True` (default) and `False`.
+Valid values are `true` (default) and `false`.
 
 `iptables_allow_multicast`  
 Whether to allow incoming IPv4 multicast traffic.
-Valid values are `True` (default) and `False`.
+Valid values are `true` (default) and `false`.
 
 `iptables_allow_anycast`  
 Whether to allow incoming IPv4 anycast traffic.
-Valid values are `True` (default) and `False`.
+Valid values are `true` (default) and `false`.
 
 `iptables_accept_ip_input`, `iptables_block_ip_input`, `iptables_accept_ip_output`, `iptables_block_ip_output`  
 Each of these variables contains a list of IP addresses (or hostnames) for which all traffic should be accepted/blocked in the `INPUT`/`OUTPUT` chain.

@@ -2,7 +2,7 @@
 #!/bin/bash
 # iptables configuration script v0.6
 # {{ ansible_managed }}
-{# This returns '-4' if any of the given addresses are IPv4 addresses, '-6' if they are not, but any are IPv6 addresses, andnothing if neither IPv4 nor IPv6 addresses are given #}
+{# This returns '-4' if any of the given addresses are IPv4 addresses, '-6' if they are not, but any are IPv6 addresses, and nothing if neither IPv4 nor IPv6 addresses are given #}
 {% macro ip_family_prefix(addresses) %}
 {% if addresses | map('replace', '!', '') | ipv4 %}
 -4 {# #}
