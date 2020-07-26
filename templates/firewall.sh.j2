@@ -441,10 +441,28 @@ stop() {
     iptables -P FORWARD ACCEPT
     iptables -P INPUT ACCEPT
     iptables -P OUTPUT ACCEPT
+    local tables
+    if [[ -e /proc/net/ip_tables_names ]]; then
+        tables="$(cat /proc/net/ip_tables_names)"
+    fi
+    if [[ -z "${tables}" ]]; then
+        tables=$'filter\nmangle\nnat'
+    fi
     while read -r table; do
-        iptables -t "${table}" -F
-        iptables -t "${table}" -X
-    done < /proc/net/ip_tables_names
+        iptables -4 -t "${table}" -F
+        iptables -4 -t "${table}" -X
+    done <<< "${tables}"
+    tables=
+    if [[ -e /proc/net/ip6_tables_names ]]; then
+        tables="$(cat /proc/net/ip6_tables_names)"
+    fi
+    if [[ -z "${tables}" ]]; then
+        tables=$'filter\nmangle\nnat'
+    fi
+    while read -r table; do
+        iptables -6 -t "${table}" -F
+        iptables -6 -t "${table}" -X
+    done <<< "${tables}"
     echo "Done"
 }
 
