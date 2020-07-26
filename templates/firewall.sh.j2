@@ -358,7 +358,7 @@ start() {
                 # There is a RRSet and it may contain multiple entries
                 while read -r record; do
                     # Add a rule for the port from the 3rd field and the hostname from the 4th field
-                    iptables {{ port_opts('tcp_output', 'tcp', {'port': '"$(cut -d '' '' -f 3 <<< "${record}")"', 'destination': '"$(cut -d '' '' -f 4 <<< "${record#.}")"', 'user': '_apt'}) }} -j ACCEPT
+                    iptables {{ port_opts('tcp_output', 'tcp', {'port': '"$(cut -d \" \" -f 3 <<< "${record}")"', 'destination': '"$(cut -d \" \" -f 4 <<< "${record#.}")"', 'user': '_apt'}) }} -j ACCEPT
                 done <<< "${records}"
             fi
         fi
