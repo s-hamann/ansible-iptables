@@ -398,7 +398,7 @@ start() {
     {% if iptables_unrestricted_users %}
     # Allow all outgoing traffic for the following users.
     {% for user in iptables_unrestricted_users %}
-    iptables -A OUTPUT -m owner --uid-owner '{{ user }}' -j ACCEPT
+    iptables -A OUTPUT -m owner --uid-owner {{ user | quote }} -j ACCEPT
     {% endfor %}
     {% endif %}
     {% if iptables_unrestricted_groups %}
@@ -450,15 +450,15 @@ stop() {
 
 save() {
     echo "Saving iptables rules..."
-    iptables-save > "{{ iptables_save_path }}"
-    ip6tables-save > "{{ ip6tables_save_path }}"
+    iptables-save > {{ iptables_save_path | quote }}
+    ip6tables-save > {{ ip6tables_save_path | quote }}
     echo "Done"
 }
 
 restore() {
     echo "Restoring iptables rules..."
-    iptables-restore < "{{ iptables_save_path }}"
-    ip6tables-restore < "{{ ip6tables_save_path }}"
+    iptables-restore < {{ iptables_save_path | quote }}
+    ip6tables-restore < {{ ip6tables_save_path | quote }}
     echo "Done"
 }
 
