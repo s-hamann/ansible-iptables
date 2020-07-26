@@ -159,6 +159,7 @@ A system in this group would then not accept connection on TCP port 80.
 Notes:
 * Suffixes can be completely arbitrary but an `_` needs to be between the original list name and the suffix.
 * The resulting lists are lexicographically ordered by the suffix name.
+* If the "base" variable (without a suffix) is defined, the respective suffixed variables are ignored.
 
 License
 -------

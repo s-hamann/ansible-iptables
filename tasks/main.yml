@@ -31,6 +31,7 @@
     - 'iptables_custom_output_rules'
   loop_control:
     loop_var: var_name
+  when: "lookup('vars', var_name, default=false) == false"
 
 - name: 'install required software'
   package:

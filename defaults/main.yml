@@ -7,22 +7,6 @@ iptables_allow_ping: true
 iptables_allow_broadcast: true
 iptables_allow_multicast: true
 iptables_allow_anycast: true
-iptables_accept_ip_input: []
-iptables_block_ip_input: []
-iptables_accept_tcp_input: []
-iptables_block_tcp_input: []
-iptables_accept_udp_input: []
-iptables_block_udp_input: []
-iptables_accept_ip_output: []
-iptables_block_ip_output: []
-iptables_accept_tcp_output: []
-iptables_block_tcp_output: []
-iptables_accept_udp_output: []
-iptables_block_udp_output: []
-iptables_custom_input_rules: []
-iptables_custom_output_rules: []
-iptables_unrestricted_users: []
-iptables_unrestricted_groups: []
 iptables_dns_resolver_user:
 iptables_ntp_client_user:
 iptables_smtp_client_user:
