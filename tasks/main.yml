@@ -35,7 +35,7 @@
 
 - name: 'install required software'
   package:
-    name: "{{ iptables_packages }}"
+    name: "{{ iptables_packages | select }}"
     state: present
 
 - name: 'install iptables setup script'
