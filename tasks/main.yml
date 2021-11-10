@@ -38,6 +38,13 @@
     name: "{{ iptables_packages | select }}"
     state: present
 
+- name: 'create /usr/local/sbin/'
+  file:
+    path: '/usr/local/sbin/'
+    state: directory
+    owner: root
+    mode: 0755
+
 - name: 'install iptables setup script'
   template:
     src: 'firewall.sh.j2'
