@@ -5,7 +5,7 @@ Configures the firewall using iptables.
 This role supports ingress and egress filtering.
 When egress filtering is enabled, some common protocols are automatically allowed.
 This includes:
-* DNS requests to the name servers in `/etc/resolv.conf`
+* DNS requests to the name servers in `/etc/resolv.conf` or by systemd-resolved
 * Package management (Gentoo, Debian, Alpine)
 
 Requirements
@@ -83,7 +83,7 @@ iptables_block_udp_output:
 `iptables_dns_resolver_user`  
 If the output policy is `DROP`, setting this allows this local user account to do arbitrary DNS requests.
 This is useful when running a local DNS resolver, such as Unbound or dnsmasq.
-The default is empty, i.e. only traffic to the configured DNS server in `/etc/resolv.conf` is allowed.
+The default is empty, i.e. only traffic to the configured DNS server in `/etc/resolv.conf` and by systemd-resolved is allowed.
 
 `iptables_ntp_client_user`  
 If the output policy is `DROP`, setting this allows this local user account to do arbitrary NTP requests.

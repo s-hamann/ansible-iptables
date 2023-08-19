@@ -250,6 +250,13 @@ start() {
     iptables {{ port_opts('udp_output', 'udp', { 'port': 53, 'user': iptables_dns_resolver_user }) }} -j ACCEPT
     iptables {{ port_opts('tcp_output', 'tcp', { 'port': 53, 'user': iptables_dns_resolver_user }) }} -j ACCEPT
     {% endif %}
+    {% if ansible_facts['service_mgr'] == 'systemd' and iptables_dns_resolver_user != 'systemd-resolve' %}
+    if pgrep -f systemd-resolved >/dev/null; then
+        # Allow DNS requests by systemd-resolved
+        iptables {{ port_opts('udp_output', 'udp', { 'port': 53, 'user': 'systemd-resolve' }) }} -j ACCEPT
+        iptables {{ port_opts('tcp_output', 'tcp', { 'port': 53, 'user': 'systemd-resolve' }) }} -j ACCEPT
+    fi
+    {% endif %}
     {% endif %}
 
     # Rules for TCP ports
