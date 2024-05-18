@@ -3,10 +3,10 @@
 # contents of all variables in the host's scope whose name begins with the name
 # of the target list, followed by '_' and something arbitrary.
 - name: "initialise {{ var_name }}"
-  set_fact:
+  ansible.builtin.set_fact:
     {"{{ var_name }}": "{{ lookup('vars', var_name, default=[]) }}"}
 
 - name: "combine {{ var_name }} from components"
-  set_fact:
+  ansible.builtin.set_fact:
     {"{{ var_name }}": "{{ lookup('vars', var_name) + lookup('vars', item) | flatten }}"}
   loop: "{{ query('varnames', '^' ~ var_name ~ '_.*') | sort | list }}"

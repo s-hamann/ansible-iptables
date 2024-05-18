@@ -1,6 +1,6 @@
 ---
 - name: 'gather os specific variables'
-  include_vars: "{{ vars_file }}"
+  ansible.builtin.include_vars: "{{ vars_file }}"
   loop:
     - 'default.yml'
     - "{{ ansible_facts['os_family'] | lower }}.yml"
@@ -11,7 +11,7 @@
     loop_var: vars_file
   when: "(vars_file is abs and vars_file is file) or (vars_file is not abs and (role_path ~ '/vars/' ~ vars_file) is file)"
 
-- include_tasks: combine_list.yml
+- ansible.builtin.include_tasks: combine_list.yml
   loop:
     - 'iptables_accept_ip_input'
     - 'iptables_block_ip_input'
@@ -34,19 +34,19 @@
   when: "lookup('vars', var_name, default=false) == false"
 
 - name: 'install required software'
-  package:
+  ansible.builtin.package:
     name: "{{ iptables_packages | select }}"
     state: present
 
 - name: 'create /usr/local/sbin/'
-  file:
+  ansible.builtin.file:
     path: '/usr/local/sbin/'
     state: directory
     owner: root
     mode: 0755
 
 - name: 'install iptables setup script'
-  template:
+  ansible.builtin.template:
     src: 'firewall.sh.j2'
     dest: '/usr/local/sbin/firewall.sh'
     owner: root
@@ -55,7 +55,7 @@
   register: _iptables_script
 
 - name: 'activate and persist rules'
-  command: "{{ item }}"
+  ansible.builtin.command: "{{ item }}"
   async: 12
   poll: 1
   when: "_iptables_script is changed"
@@ -64,7 +64,7 @@
     - '/usr/local/sbin/firewall.sh save'
 
 - name: 'enable and start'
-  service:
+  ansible.builtin.service:
     name: "{{ item }}"
     enabled: true
     state: "{{ ansible_facts['is_chroot'] | ternary(omit, 'started') }}"

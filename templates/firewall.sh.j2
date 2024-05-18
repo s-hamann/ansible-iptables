@@ -4,9 +4,9 @@
 # {{ ansible_managed }}
 {# This returns '-4' if any of the given addresses are IPv4 addresses, '-6' if they are not, but any are IPv6 addresses, and nothing if neither IPv4 nor IPv6 addresses are given #}
 {% macro ip_family_prefix(addresses) %}
-{% if addresses | map('replace', '!', '') | ipv4 %}
+{% if addresses | map('replace', '!', '') | ansible.utils.ipv4 %}
 -4 {# #}
-{% elif addresses | map('replace', '!', '') | ipv6 %}
+{% elif addresses | map('replace', '!', '') | ansible.utils.ipv6 %}
 -6 {# #}
 {% endif %}
 {% endmacro %}
