@@ -7,6 +7,8 @@ iptables_allow_ping: true
 iptables_allow_broadcast: true
 iptables_allow_multicast: true
 iptables_allow_anycast: true
+iptables_allow_dhcp4: true
+iptables_allow_dhcp6: true
 iptables_dns_resolver_user:
 iptables_ntp_client_user:
 iptables_smtp_client_user:

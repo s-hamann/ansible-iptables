@@ -80,6 +80,10 @@ iptables_block_udp_output:
   - 123
 ```
 
+`iptables_allow_dhcp4`, `iptables_allow_dhcp6`  
+If set to `true`, open the ports required for network configuration via DHCPv4 or DHCPv6, respectively, on all interfaces.
+Defaults to `true`.
+
 `iptables_dns_resolver_user`  
 If the output policy is `DROP`, setting this allows this local user account to do arbitrary DNS requests.
 This is useful when running a local DNS resolver, such as Unbound or dnsmasq.
