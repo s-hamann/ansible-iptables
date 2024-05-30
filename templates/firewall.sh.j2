@@ -271,7 +271,7 @@ start() {
     {% if ansible_facts['service_mgr'] == 'systemd' and iptables_dns_resolver_user != 'systemd-resolve' %}
     if pgrep -f systemd-resolved >/dev/null; then
         # Allow DNS requests by systemd-resolved
-        for dns_server in $(resolvectl dns | grep -Po '^Global: \K.*'); do
+        for dns_server in $(resolvectl dns | cut -d: -f2- | tr ' ' $'\n' | sort -u); do
             if [[ "${dns_server}" != 127.*.*.* && "${dns_server}" != '::1' ]]; then
                 iptables {{ port_opts('udp_output', 'udp', { 'destination': '${dns_server}', 'port': 53, 'user': 'systemd-resolve' }) }} -j ACCEPT
                 iptables {{ port_opts('tcp_output', 'tcp', { 'destination': '${dns_server}', 'port': 53, 'user': 'systemd-resolve' }) }} -j ACCEPT
