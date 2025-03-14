@@ -37,6 +37,8 @@
 {% endmacro %}
 
 allow_ping={{ 'true' if iptables_allow_ping | bool else 'false' }}
+readonly IPTABLES="$(which iptables)"
+readonly IP6TABLES="$(which ip6tables)"
 
 iptables() {
     # Wrapper around iptables and ip6tables that passes all parameters to both programs
@@ -49,8 +51,8 @@ iptables() {
         ipv4=false
         shift
     fi
-    ${ipv4} && /sbin/iptables "$@"
-    ${ipv6} && /sbin/ip6tables "$@"
+    ${ipv4} && "${IPTABLES}" "$@"
+    ${ipv6} && "${IP6TABLES}" "$@"
 }
 
 start() {
