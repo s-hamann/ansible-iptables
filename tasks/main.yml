@@ -9,7 +9,7 @@
     - "{{ ansible_facts['distribution'] | lower }}-{{ ansible_facts['distribution_version'] }}.yml"
   loop_control:
     loop_var: vars_file
-  when: "(vars_file is abs and vars_file is file) or (vars_file is not abs and (role_path ~ '/vars/' ~ vars_file) is file)"
+  when: "(vars_file is ansible.builtin.abs and vars_file is ansible.builtin.file) or (vars_file is not ansible.builtin.abs and (role_path ~ '/vars/' ~ vars_file) is ansible.builtin.file)"
 
 - ansible.builtin.include_tasks: combine_list.yml
   loop:
@@ -58,7 +58,7 @@
   ansible.builtin.command: "{{ item }}"
   async: 12
   poll: 1
-  when: "_iptables_script is changed"
+  when: "_iptables_script is ansible.builtin.changed"
   loop:
     - '/usr/local/sbin/firewall.sh restart'
     - '/usr/local/sbin/firewall.sh save'
@@ -67,5 +67,5 @@
   ansible.builtin.service:
     name: "{{ item }}"
     enabled: true
-    state: "{{ ansible_facts['is_chroot'] | ternary(omit, 'started') }}"
+    state: "{{ ansible_facts['is_chroot'] | ansible.builtin.ternary(omit, 'started') }}"
   loop: "{{ iptables_services }}"

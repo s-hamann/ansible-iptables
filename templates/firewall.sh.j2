@@ -36,7 +36,7 @@
 {%- endif %}
 {% endmacro %}
 
-allow_ping={{ 'true' if iptables_allow_ping | bool else 'false' }}
+allow_ping={{ 'true' if iptables_allow_ping | ansible.builtin.bool else 'false' }}
 readonly IPTABLES="$(which iptables)"
 readonly IP6TABLES="$(which ip6tables)"
 

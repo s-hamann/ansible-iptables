@@ -4,9 +4,9 @@
 # of the target list, followed by '_' and something arbitrary.
 - name: "initialise {{ var_name }}"
   ansible.builtin.set_fact:
-    {"{{ var_name }}": "{{ lookup('vars', var_name, default=[]) }}"}
+    {"{{ var_name }}": "{{ lookup('ansible.builtin.vars', var_name, default=[]) }}"}
 
 - name: "combine {{ var_name }} from components"
   ansible.builtin.set_fact:
-    {"{{ var_name }}": "{{ lookup('vars', var_name) + lookup('vars', item) | flatten }}"}
-  loop: "{{ query('varnames', '^' ~ var_name ~ '_.*') | sort | list }}"
+    {"{{ var_name }}": "{{ lookup('ansible.builtin.vars', var_name) + lookup('ansible.builtin.vars', item) | ansible.builtin.flatten }}"}
+  loop: "{{ query('ansible.builtin.varnames', '^' ~ var_name ~ '_.*') | sort | list }}"
