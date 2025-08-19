@@ -363,7 +363,7 @@ start() {
     # Thus, the rules need to be recreated when the DNS (or the sources.list) changes.
     (
     shopt -s nullglob
-    for mirror in $(grep -h -Po '^\s*deb(-src)? \K[a-z+]+://[a-z0-9.:-]+' /etc/apt/sources.list{,.d/*} | sort -u); do
+    for mirror in $(grep -h -Po '^\s*deb(-src)? (\[.*\]\s+)?\K[a-z+]+://[a-z0-9.:-]+' /etc/apt/sources.list{,.d/*} | sort -u); do
         protocol="${mirror%%:*}"
         hostname="$(cut -d / -f 3 <<< "${mirror}")"
         port="${mirror##${protocol}://${hostname}:}"
