@@ -137,6 +137,25 @@ start() {
     # ICMP Timestamp Requests, not to be confused with TCP Timestamp Requests
     iptables -4 -A check-icmp -p icmp --icmp-type 'timestamp-request' -j DROP
 
+    {% if iptables_allow_dhcp4 | bool and (iptables_output_policy == 'DROP' or iptables_input_policy == 'DROP') %}
+    # Allow DHCPv4
+    {% if iptables_output_policy == 'DROP' %}
+    iptables -4 -A OUTPUT -p udp --dport 67 --sport 68 -j ACCEPT
+    {% endif %}
+    {% if iptables_input_policy == 'DROP' or not iptables_allow_broadcast %}
+    iptables -4 -A INPUT -p udp --dport 68 --sport 67 -j ACCEPT
+    {% endif %}
+    {% endif %}
+    {% if iptables_allow_dhcp6 | bool and (iptables_output_policy == 'DROP' or iptables_input_policy == 'DROP') %}
+    # Allow DHCPv6
+    {% if iptables_output_policy == 'DROP' %}
+    iptables -6 -A OUTPUT -p udp --dport 547 --sport 546 -j ACCEPT
+    {% endif %}
+    {% if iptables_input_policy == 'DROP' or not iptables_allow_broadcast %}
+    iptables -6 -A INPUT -p udp --dport 546 --sport 547 -j ACCEPT
+    {% endif %}
+    {% endif %}
+
 
     #
     # Rules for incoming traffic
@@ -229,25 +248,6 @@ start() {
     # Handle ICMP
     iptables -4 -A OUTPUT -p icmp -j check-icmp
     iptables -6 -A OUTPUT -p icmpv6 -j check-icmp
-
-    {% if iptables_allow_dhcp4 | bool and (iptables_output_policy == 'DROP' or iptables_input_policy == 'DROP') %}
-    # Allow DHCPv4
-    {% if iptables_output_policy == 'DROP' %}
-    iptables -4 -A udp_output -p udp --dport 67 --sport 68 -j ACCEPT
-    {% endif %}
-    {% if iptables_input_policy == 'DROP' %}
-    iptables -4 -A udp_input -p udp --dport 68 --sport 67 -j ACCEPT
-    {% endif %}
-    {% endif %}
-    {% if iptables_allow_dhcp6 | bool and (iptables_output_policy == 'DROP' or iptables_input_policy == 'DROP') %}
-    # Allow DHCPv6
-    {% if iptables_output_policy == 'DROP' %}
-    iptables -6 -A udp_output -p udp --dport 547 --sport 546 -j ACCEPT
-    {% endif %}
-    {% if iptables_input_policy == 'DROP' %}
-    iptables -6 -A udp_input -p udp --dport 546 --sport 547 -j ACCEPT
-    {% endif %}
-    {% endif %}
 
     {% if iptables_output_policy == 'DROP' %}
     # Allow DNS requests to the configured nameservers
